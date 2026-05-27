@@ -161,13 +161,7 @@
     const hatPos = top.clone();
 
 // Koreksi posisi untuk Chrome mobile
-const ua = navigator.userAgent;
-const isChromeMobile = /Chrome/.test(ua) && !/Brave/.test(ua) && /Mobile/.test(ua);
-if (isChromeMobile) {
-  // Geser topi ke bawah — sesuaikan nilai ini jika masih kurang pas
-  const faceHeight = top.distanceTo(bottom);
-  hatPos.y -= faceHeight * 0.35;
-}
+
     const rotMat = new THREE.Matrix4().makeBasis(xAxis, yAxis, zAxis);
     const quat   = new THREE.Quaternion().setFromRotationMatrix(rotMat);
 
@@ -259,14 +253,7 @@ if (isChromeMobile) {
       justify-content: space-between;
     }
 /* Tambahkan di <style> */
-#ar-container video {
-  position: fixed !important;
-  top: 0 !important;
-  left: 0 !important;
-  width: 100vw !important;
-  height: 100vh !important;
-  object-fit: cover !important;
-}
+
     #hud.active { display: flex; }
 
     /* Top Bar */
@@ -892,17 +879,29 @@ scene.addEventListener('arReady', () => {
   showToast('AR siap! Arahkan wajah ke kamera 😊');
 
   // Fix Chrome mobile viewport — panggil beberapa kali
-  const fixChrome = () => {
-    const renderer = scene.renderer;
-    if (!renderer) return;
-    renderer.setPixelRatio(window.devicePixelRatio);
-    renderer.setSize(window.innerWidth, window.innerHeight, false);
-    const mindARSystem = scene.systems?.['mindar-face-system'];
-    if (mindARSystem?.resize) mindARSystem.resize();
-  };
-  fixChrome();
-  setTimeout(fixChrome, 500);
-  setTimeout(fixChrome, 1500);
+  // Ganti fixChrome() menjadi ini di arReady:
+const fixChrome = () => {
+  const video = document.querySelector('video');
+  const renderer = scene.renderer;
+  if (!renderer || !video) return;
+  
+  // Tunggu video punya dimensi
+  if (!video.videoWidth) return;
+  
+  // Biarkan MindAR yang set ukuran canvas — jangan override
+  // Hanya pastikan container mengikuti video
+  const canvas = document.querySelector('canvas');
+  if (canvas) {
+    canvas.style.position = 'fixed';
+    canvas.style.top = '0';
+    canvas.style.left = '0';
+    canvas.style.width = '100%';
+    canvas.style.height = '100%';
+  }
+};
+fixChrome();
+setTimeout(fixChrome, 500);
+setTimeout(fixChrome, 1500);
 
   // Cache entities & activate models (kode existing tetap sama)
   for (let n = 1; n <= TOTAL_HATS; n++) {
