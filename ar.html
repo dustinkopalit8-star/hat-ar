@@ -648,7 +648,7 @@ html, body {
 <!-- ══ AR SCENE ══ -->
 <div id="ar-container">
   <a-scene id="ar-scene"
-    mindar-face="autoStart: true; uiLoading: false; uiError: false; filterMinCF: 0.001; filterBeta: 0.001;"
+  mindar-face="autoStart: true; uiLoading: false; uiError: false; filterMinCF: 0.1; filterBeta: 100;"
   embedded color-space="sRGB"
   renderer="colorManagement: true, physicallyCorrectLights, preserveDrawingBuffer: true"
   vr-mode-ui="enabled: false"
@@ -656,7 +656,10 @@ html, body {
   loading-screen="enabled: false">
 
     <a-assets timeout="15000"></a-assets>
-    <a-camera active="false" position="0 0 0"></a-camera>
+    <a-camera active="false" position="0 0 0" 
+  look-controls="enabled: false" 
+  wasd-controls="enabled: false">
+</a-camera>
 
     <!-- Occluder anchor -->
     <a-entity mindar-face-target="anchorIndex: 168" id="occluder-anchor"></a-entity>
