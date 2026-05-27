@@ -159,6 +159,15 @@
     }
 
     const hatPos = top.clone();
+
+// Koreksi posisi untuk Chrome mobile
+const ua = navigator.userAgent;
+const isChromeMobile = /Chrome/.test(ua) && !/Brave/.test(ua) && /Mobile/.test(ua);
+if (isChromeMobile) {
+  // Geser topi ke bawah — sesuaikan nilai ini jika masih kurang pas
+  const faceHeight = top.distanceTo(bottom);
+  hatPos.y -= faceHeight * 0.35;
+}
     const rotMat = new THREE.Matrix4().makeBasis(xAxis, yAxis, zAxis);
     const quat   = new THREE.Quaternion().setFromRotationMatrix(rotMat);
 
