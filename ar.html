@@ -174,6 +174,14 @@ if (window.visualViewport) {
 
     const hatPos = top.clone();
 
+// Koreksi Chrome Android — innerH lebih besar dari Brave karena address bar
+const correctH = 750; // nilai innerH Brave yang menghasilkan posisi benar
+const currentH = window.innerHeight;
+if (currentH > correctH) {
+  const ratio = currentH / correctH;
+  hatPos.y -= (ratio - 1) * top.distanceTo(bottom) * 2.5;
+}
+
 // Koreksi posisi untuk Chrome mobile
 
     const rotMat = new THREE.Matrix4().makeBasis(xAxis, yAxis, zAxis);
