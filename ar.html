@@ -28,7 +28,64 @@
   };
 </script>
   <script>
-    
+    /* ── Komponen head-center (dari logika AR yang berhasil) ── */
+    // AFRAME.registerComponent('head-center', {
+    //   init() { this._freezeCount = 0; this._prevPos = null; },
+    //   remove() {},
+    //   tick() {
+    //     const lm10  = document.getElementById('lm-10');
+    //     const lm152 = document.getElementById('lm-152');
+    //     const lm234 = document.getElementById('lm-234');
+    //     const lm454 = document.getElementById('lm-454');
+    //     if (!lm10 || !lm152 || !lm234 || !lm454) return;
+
+    //     const getWP = (el) => {
+    //       const v = new THREE.Vector3();
+    //       el.object3D.getWorldPosition(v);
+    //       return v;
+    //     };
+
+    //     const top    = getWP(lm10);
+    //     const bottom = getWP(lm152);
+    //     const left   = getWP(lm234);
+    //     const right  = getWP(lm454);
+
+    //     if (top.lengthSq() < 0.0001) { this.el.object3D.visible = false; return; }
+
+    //     if (!this._prevPos) this._prevPos = top.clone();
+    //     const delta = top.distanceTo(this._prevPos);
+    //     if (delta < 0.000001) { this._freezeCount++; }
+    //     else { this._freezeCount = 0; this._prevPos.copy(top); }
+    //     if (this._freezeCount > 60) { this.el.object3D.visible = false; return; }
+
+    //     this.el.object3D.visible = true;
+
+    //     const yAxis = new THREE.Vector3().subVectors(top, bottom).normalize();
+    //     const xAxis = new THREE.Vector3().subVectors(right, left).normalize();
+    //     const zAxis = new THREE.Vector3().crossVectors(xAxis, yAxis).normalize();
+    //     xAxis.crossVectors(yAxis, zAxis).normalize();
+
+    //     if (zAxis.z < -0.1) { this.el.object3D.visible = false; return; }
+    //     this.el.object3D.visible = true;
+
+    //     const hatPos = top.clone();
+    //     const rotMat = new THREE.Matrix4().makeBasis(xAxis, yAxis, zAxis);
+    //     const quat   = new THREE.Quaternion().setFromRotationMatrix(rotMat);
+
+    //     const obj    = this.el.object3D;
+    //     const parent = obj.parent;
+    //     if (parent) {
+    //       const parentWorldInv = parent.matrixWorld.clone().invert();
+    //       hatPos.applyMatrix4(parentWorldInv);
+    //       const parentQ = new THREE.Quaternion();
+    //       parent.getWorldQuaternion(parentQ);
+    //       quat.premultiply(parentQ.invert());
+    //     }
+
+    //     obj.position.copy(hatPos);
+    //     obj.quaternion.copy(quat);
+    //   }
+    // });
    AFRAME.registerComponent('head-center', {
   init() { 
     this._freezeCount = 0; 
@@ -585,14 +642,14 @@ html, body {
     <a-entity mindar-face-target="anchorIndex: 168" id="occluder-anchor"></a-entity>
 
     <!-- Landmark referensi (tidak terlihat) -->
-    <!-- <a-entity mindar-face-target="anchorIndex: 10"  id="lm-10"  visible="false"></a-entity>
+    <a-entity mindar-face-target="anchorIndex: 10"  id="lm-10"  visible="false"></a-entity>
     <a-entity mindar-face-target="anchorIndex: 152" id="lm-152" visible="false"></a-entity>
     <a-entity mindar-face-target="anchorIndex: 234" id="lm-234" visible="false"></a-entity>
-    <a-entity mindar-face-target="anchorIndex: 454" id="lm-454" visible="false"></a-entity> -->
+    <a-entity mindar-face-target="anchorIndex: 454" id="lm-454" visible="false"></a-entity>
 
     <!-- Hat container -->
-    <a-entity mindar-face-target="anchorIndex: 10" id="hat-container">
-  <a-entity id="hat-offset" position="0 0.06 0">
+    <a-entity id="hat-container" head-center render-order="1">
+      <a-entity id="hat-offset" position="0 0 0">
 
         <!-- HAT 1: Tapung Udeng -->
         <a-entity id="hat1" position="0 0 0" visible="true">
@@ -821,19 +878,39 @@ window.addEventListener('resize', () => {
   function startAR() {
     document.getElementById('ar-container').classList.add('active');
     document.getElementById('hud').classList.add('active');
-const hatContainer = document.getElementById('hat-container');
-hatContainer.addEventListener('targetFound', () => {
-  document.getElementById('face-status')?.classList.add('face-status-hidden');
-});
-hatContainer.addEventListener('targetLost', () => {
-  document.getElementById('face-status')?.classList.remove('face-status-hidden');
-});
+
     const scene = document.getElementById('ar-scene');
 
 scene.addEventListener('arReady', () => {
   document.getElementById('loading-overlay').classList.add('hidden');
   showToast('AR siap! Arahkan wajah ke kamera 😊');
 
+  // Fix Chrome mobile viewport — panggil beberapa kali
+  // Ganti fixChrome() menjadi ini di arReady:
+const fixChrome = () => {
+  const video = document.querySelector('video');
+  const renderer = scene.renderer;
+  if (!renderer || !video) return;
+  
+  // Tunggu video punya dimensi
+  if (!video.videoWidth) return;
+  
+  // Biarkan MindAR yang set ukuran canvas — jangan override
+  // Hanya pastikan container mengikuti video
+  const canvas = document.querySelector('canvas');
+  if (canvas) {
+    canvas.style.position = 'fixed';
+    canvas.style.top = '0';
+    canvas.style.left = '0';
+    canvas.style.width = '100%';
+    canvas.style.height = '100%';
+  }
+};
+fixChrome();
+setTimeout(fixChrome, 500);
+setTimeout(fixChrome, 1500);
+
+  // Cache entities & activate models (kode existing tetap sama)
   for (let n = 1; n <= TOTAL_HATS; n++) {
     hatEntities[n] = document.getElementById(`hat${n}`);
   }
