@@ -826,7 +826,13 @@ html, body {
 
 <!-- Toast -->
 <div id="toast"></div>
-
+<!-- DEBUG SEMENTARA - hapus setelah selesai -->
+<div id="debug-info" style="
+  position:fixed; top:80px; left:10px; z-index:999;
+  background:rgba(0,0,0,0.8); color:#fff; font-size:11px;
+  padding:8px; border-radius:8px; line-height:1.6;
+  font-family:monospace; pointer-events:none;
+"></div>
 <script src="js/data.js"></script>
 <script>
   /* ── State ── */
@@ -896,7 +902,25 @@ window.addEventListener('resize', () => {
 scene.addEventListener('arReady', () => {
   document.getElementById('loading-overlay').classList.add('hidden');
   showToast('AR siap! Arahkan wajah ke kamera 😊');
-
+// DEBUG - tampilkan info viewport di layar
+const dbg = document.getElementById('debug-info');
+if (dbg) {
+  const update = () => {
+    dbg.innerHTML = `
+      innerH: ${window.innerHeight}<br>
+      innerW: ${window.innerWidth}<br>
+      visH: ${window.visualViewport?.height}<br>
+      visW: ${window.visualViewport?.width}<br>
+      DPR: ${window.devicePixelRatio}<br>
+      vidH: ${document.querySelector('video')?.videoHeight}<br>
+      vidW: ${document.querySelector('video')?.videoWidth}<br>
+      canH: ${document.querySelector('canvas')?.height}<br>
+      canW: ${document.querySelector('canvas')?.width}
+    `;
+  };
+  update();
+  setInterval(update, 1000);
+}
   // Fix Chrome mobile viewport — panggil beberapa kali
   // Ganti fixChrome() menjadi ini di arReady:
 const fixChrome = () => {
