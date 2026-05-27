@@ -7,6 +7,18 @@
   <!-- <meta name="viewport" content="width=device-width, initial-scale=1.0" /> -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>AR Try-On — Topi Adat Dayak Kenyah</title>
+  <script>
+// Paksa window.innerHeight = visual viewport height SEBELUM MindAR init
+// Ini mengatasi masalah Chrome Android address bar
+if (window.visualViewport) {
+  Object.defineProperty(window, 'innerHeight', {
+    get: () => window.visualViewport.height
+  });
+  Object.defineProperty(window, 'innerWidth', {
+    get: () => window.visualViewport.width
+  });
+}
+</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <!-- A-Frame HARUS dimuat SEBELUM MindAR -->
   <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
