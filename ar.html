@@ -1,31 +1,20 @@
 <!DOCTYPE html>
 <html lang="id">
-
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>AR Try-On — Topi Adat Dayak Kenyah</title>
-  <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script> -->
   <script>
-    // Patch WebGL agar preserveDrawingBuffer selalu true
-    const origGetContext = HTMLCanvasElement.prototype.getContext;
-    HTMLCanvasElement.prototype.getContext = function (type, attrs) {
-      if (type === 'webgl' || type === 'webgl2') {
-        attrs = attrs || {};
-        attrs.preserveDrawingBuffer = true;
-      }
-      return origGetContext.call(this, type, attrs);
-    };
-  </script>
-  <script>
+    // PAKSA RESOLUSI RENDAH UNTUK PERFORMA
     const origGetUserMedia = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
     navigator.mediaDevices.getUserMedia = function (constraints) {
       if (constraints && constraints.video) {
         constraints.video = {
           ...(typeof constraints.video === 'object' ? constraints.video : {}),
-          width:  { ideal: 640 },
-          height: { ideal: 480 },
-          facingMode: 'user'
+          width: { ideal: 320 },
+          height: { ideal: 240 },
+          facingMode: 'user',
+          frameRate: { ideal: 30 }
         };
       }
       return origGetUserMedia(constraints);
@@ -33,360 +22,110 @@
   </script>
   <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-face-aframe.prod.js"></script>
-  <script>
-    AFRAME.registerComponent('head-center', {
-      init() {
-        this._freezeCount = 0;
-        this._prevPos = new THREE.Vector3();
-        this._hasPrevPos = false;
-        this._faceVisible = false;
-        
-        // Cache elements
-        this.lm10 = document.getElementById('lm-10');
-        this.lm152 = document.getElementById('lm-152');
-        this.lm234 = document.getElementById('lm-234');
-        this.lm454 = document.getElementById('lm-454');
-        this.statusEl = document.getElementById('face-status');
-
-        // Reuse objects to avoid GC
-        this.topV = new THREE.Vector3();
-        this.bottomV = new THREE.Vector3();
-        this.leftV = new THREE.Vector3();
-        this.rightV = new THREE.Vector3();
-        this.yAxis = new THREE.Vector3();
-        this.xAxis = new THREE.Vector3();
-        this.zAxis = new THREE.Vector3();
-        this.rotMat = new THREE.Matrix4();
-        this.quat = new THREE.Quaternion();
-        this.hatPos = new THREE.Vector3();
-        this.parentWorldInv = new THREE.Matrix4();
-        this.parentQ = new THREE.Quaternion();
-      },
-      
-      tick() {
-        if (!this.lm10 || !this.lm152 || !this.lm234 || !this.lm454) return;
-
-        // Get world positions into reusable vectors
-        this.lm10.object3D.getWorldPosition(this.topV);
-        this.lm152.object3D.getWorldPosition(this.bottomV);
-        this.lm234.object3D.getWorldPosition(this.leftV);
-        this.lm454.object3D.getWorldPosition(this.rightV);
-
-        const showWarning = () => { if (this.statusEl) this.statusEl.classList.remove('face-status-hidden'); };
-        const hideWarning = () => { if (this.statusEl) this.statusEl.classList.add('face-status-hidden'); };
-
-        if (this.topV.lengthSq() < 0.0001) {
-          this.el.object3D.visible = false;
-          if (this._faceVisible !== false) {
-            this._faceVisible = false;
-            showWarning();
-          }
-          return;
-        }
-
-        if (!this._hasPrevPos) {
-          this._prevPos.copy(this.topV);
-          this._hasPrevPos = true;
-        }
-        
-        const delta = this.topV.distanceTo(this._prevPos);
-        if (delta < 0.000001) { 
-          this._freezeCount++; 
-        } else { 
-          this._freezeCount = 0; 
-          this._prevPos.copy(this.topV); 
-        }
-
-        if (this._freezeCount > 60) {
-          this.el.object3D.visible = false;
-          if (this._faceVisible !== false) {
-            this._faceVisible = false;
-            showWarning();
-          }
-          return;
-        }
-
-        // Calculate orientation
-        this.yAxis.subVectors(this.topV, this.bottomV).normalize();
-        this.xAxis.subVectors(this.rightV, this.leftV).normalize();
-        this.zAxis.crossVectors(this.xAxis, this.yAxis).normalize();
-        this.xAxis.crossVectors(this.yAxis, this.zAxis).normalize();
-
-        if (this.zAxis.z < -0.1) {
-          this.el.object3D.visible = false;
-          if (this._faceVisible !== false) {
-            this._faceVisible = false;
-            showWarning();
-          }
-          return;
-        }
-
-        // Face detected
-        this.el.object3D.visible = true;
-        if (this._faceVisible !== true) {
-          this._faceVisible = true;
-          hideWarning();
-        }
-
-        this.hatPos.copy(this.topV);
-        this.rotMat.makeBasis(this.xAxis, this.yAxis, this.zAxis);
-        this.quat.setFromRotationMatrix(this.rotMat);
-
-        const obj = this.el.object3D;
-        const parent = obj.parent;
-        if (parent) {
-          this.parentWorldInv.copy(parent.matrixWorld).invert();
-          this.hatPos.applyMatrix4(this.parentWorldInv);
-          parent.getWorldQuaternion(this.parentQ);
-          this.quat.premultiply(this.parentQ.invert());
-        }
-        obj.position.copy(this.hatPos);
-        obj.quaternion.copy(this.quat);
-      }
-    });
-  </script>
-  <link rel="stylesheet"
-    href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Nunito:wght@600;700&display=swap" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Nunito:wght@600;700&display=swap" />
   <link rel="stylesheet" href="css/ar.css" />
 </head>
 
 <body>
-
-  <!-- ══ LOADING OVERLAY ══ -->
   <div id="loading-overlay">
     <div class="load-spinner"></div>
     <div class="load-title">Memuat AR Engine</div>
-    <div class="load-sub">Harap izinkan akses kamera…</div>
+    <div class="load-sub">Mode Performa Tinggi Aktif...</div>
   </div>
 
-  <!-- ══ AR SCENE ══ -->
   <div id="ar-container">
     <a-scene id="ar-scene"
-      mindar-face="autoStart: true; uiLoading: false; uiError: false; filterMinCF: 0.001; filterBeta: 0.01" embedded
-      color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights, preserveDrawingBuffer: false"
-      vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
+      mindar-face="autoStart: true; uiLoading: false; uiError: false; filterMinCF: 0.1; filterBeta: 10" 
+      embedded
+      renderer="antialias: false; precision: low; powerPreference: high-performance; alpha: true; colorManagement: false"
+      vr-mode-ui="enabled: false" 
+      device-orientation-permission-ui="enabled: false">
 
       <a-assets timeout="15000"></a-assets>
-      <a-camera active="false" position="0 0 0" look-controls="enabled: false" wasd-controls="enabled: false">
-      </a-camera>
+      <a-camera active="false" position="0 0 0" look-controls="enabled: false" wasd-controls="enabled: false"></a-camera>
 
-      <!-- Occluder anchor -->
-      <a-entity mindar-face-target="anchorIndex: 168" id="occluder-anchor"></a-entity>
+      <!-- Hat container menggunakan Anchor 10 (Dahi) -->
+      <a-entity id="hat-container" mindar-face-target="anchorIndex: 10">
+        <a-entity id="hat-offset" position="0 0.05 0.05">
 
-      <!-- Landmark referensi (tidak terlihat) -->
-      <a-entity mindar-face-target="anchorIndex: 10" id="lm-10" visible="false"></a-entity>
-      <a-entity mindar-face-target="anchorIndex: 152" id="lm-152" visible="false"></a-entity>
-      <a-entity mindar-face-target="anchorIndex: 234" id="lm-234" visible="false"></a-entity>
-      <a-entity mindar-face-target="anchorIndex: 454" id="lm-454" visible="false"></a-entity>
-
-      <!-- Hat container -->
-      <a-entity id="hat-container" head-center render-order="1">
-        <a-entity id="hat-offset" position="0 0 0">
-
-          <!-- HAT 1: Tapung Udeng -->
-          <a-entity id="hat1" position="0 0 0" visible="true">
-            <a-entity id="hat1-model" gltf-model="./assets/models/hat1.glb" scale="0.65 0.65 0.65"
-              visible="false"></a-entity>
-            <a-entity id="hat1-placeholder">
-              <a-cylinder color="#8B5E3C" radius="0.09" height="0.14" position="0 0.07 0"></a-cylinder>
-              <a-cylinder color="#6B4A2E" radius="0.13" height="0.02" position="0 0 0"></a-cylinder>
-            </a-entity>
+          <!-- HAT 1 -->
+          <a-entity id="hat1" visible="true">
+            <a-entity id="hat1-model" gltf-model="./assets/models/hat1.glb" scale="0.65 0.65 0.65" visible="false"></a-entity>
+            <a-entity id="hat1-placeholder"><a-cylinder color="#8B5E3C" radius="0.1" height="0.1"></a-cylinder></a-entity>
           </a-entity>
 
-          <!-- HAT 2: Tapung Longe -->
-          <a-entity id="hat2" position="0 0 0" visible="false">
-            <a-entity id="hat2-model" gltf-model="./assets/models/hat2.glb" scale="0.65 0.65 0.65"
-              visible="false"></a-entity>
-            <a-entity id="hat2-placeholder">
-              <a-cylinder color="#C0874F" radius="0.10" height="0.08" position="0 0.04 0"></a-cylinder>
-              <a-cylinder color="#A06835" radius="0.13" height="0.02" position="0 0 0"></a-cylinder>
-            </a-entity>
+          <!-- HAT 2 -->
+          <a-entity id="hat2" visible="false">
+            <a-entity id="hat2-model" gltf-model="./assets/models/hat2.glb" scale="0.65 0.65 0.65" visible="false"></a-entity>
+            <a-entity id="hat2-placeholder"><a-cylinder color="#C0874F" radius="0.1" height="0.1"></a-cylinder></a-entity>
           </a-entity>
 
-          <!-- HAT 3: Tapung Sekeduq -->
-          <a-entity id="hat3" position="0 0 0" visible="false">
-            <a-entity id="hat3-model" gltf-model="./assets/models/hat3.glb" scale="0.65 0.65 0.65"
-              visible="false"></a-entity>
-            <a-entity id="hat3-placeholder">
-              <a-cone color="#6B8C42" radius-bottom="0.16" radius-top="0.01" height="0.14" position="0 0.07 0"></a-cone>
-              <a-cylinder color="#4E6B2E" radius="0.18" height="0.02" position="0 0 0"></a-cylinder>
-            </a-entity>
+          <!-- HAT 3 -->
+          <a-entity id="hat3" visible="false">
+            <a-entity id="hat3-model" gltf-model="./assets/models/hat3.glb" scale="0.65 0.65 0.65" visible="false"></a-entity>
+            <a-entity id="hat3-placeholder"><a-cone color="#6B8C42" radius-bottom="0.15" height="0.15"></a-cone></a-entity>
           </a-entity>
 
-          <!-- HAT 4: Tapung Uwai -->
-          <a-entity id="hat4" position="0 0 0" visible="false">
-            <a-entity id="hat4-model" gltf-model="./assets/models/hat4.glb" scale="0.65 0.65 0.65"
-              visible="false"></a-entity>
-            <a-entity id="hat4-placeholder">
-              <a-cylinder color="#A0784A" radius="0.09" height="0.10" position="0 0.05 0"></a-cylinder>
-              <a-cylinder color="#80583A" radius="0.12" height="0.02" position="0 0 0"></a-cylinder>
-            </a-entity>
+          <!-- HAT 4 -->
+          <a-entity id="hat4" visible="false">
+            <a-entity id="hat4-model" gltf-model="./assets/models/hat4.glb" scale="0.65 0.65 0.65" visible="false"></a-entity>
+            <a-entity id="hat4-placeholder"><a-cylinder color="#A0784A" radius="0.1" height="0.1"></a-cylinder></a-entity>
           </a-entity>
 
-          <!-- HAT 5: Tapung Pek -->
-          <a-entity id="hat5" position="0 0 0" visible="false">
-            <a-entity id="hat5-model" gltf-model="./assets/models/hat5.glb" scale="0.65 0.65 0.65"
-              visible="false"></a-entity>
-            <a-entity id="hat5-placeholder">
-              <a-cylinder color="#B8860B" radius="0.10" height="0.12" position="0 0.06 0"></a-cylinder>
-              <a-cylinder color="#9A7200" radius="0.14" height="0.02" position="0 0 0"></a-cylinder>
-            </a-entity>
+          <!-- HAT 5 -->
+          <a-entity id="hat5" visible="false">
+            <a-entity id="hat5-model" gltf-model="./assets/models/hat5.glb" scale="0.65 0.65 0.65" visible="false"></a-entity>
+            <a-entity id="hat5-placeholder"><a-cylinder color="#B8860B" radius="0.1" height="0.1"></a-cylinder></a-entity>
           </a-entity>
 
-          <!-- HAT 6: Tapung Aban -->
-          <a-entity id="hat6" position="0 0 0" visible="false">
-            <a-entity id="hat6-model" gltf-model="./assets/models/hat6.glb" scale="0.65 0.65 0.65"
-              visible="false"></a-entity>
-            <a-entity id="hat6-placeholder">
-              <a-cylinder color="#7B5EA7" radius="0.09" height="0.13" position="0 0.065 0"></a-cylinder>
-              <a-cylinder color="#5B3E87" radius="0.12" height="0.02" position="0 0 0"></a-cylinder>
-            </a-entity>
+          <!-- HAT 6 -->
+          <a-entity id="hat6" visible="false">
+            <a-entity id="hat6-model" gltf-model="./assets/models/hat6.glb" scale="0.65 0.65 0.65" visible="false"></a-entity>
+            <a-entity id="hat6-placeholder"><a-cylinder color="#7B5EA7" radius="0.1" height="0.1"></a-cylinder></a-entity>
           </a-entity>
 
-          <!-- HAT 7: Bluko Laki -->
-          <a-entity id="hat7" position="0 0 0" visible="false">
-            <a-entity id="hat7-model" gltf-model="./assets/models/hat7.glb" scale="0.65 0.65 0.65"
-              visible="false"></a-entity>
-            <a-entity id="hat7-placeholder">
-              <a-cylinder color="#2C4A8C" radius="0.10" height="0.10" position="0 0.05 0"></a-cylinder>
-              <a-cylinder color="#1A3060" radius="0.13" height="0.02" position="0 0 0"></a-cylinder>
-            </a-entity>
+          <!-- HAT 7 -->
+          <a-entity id="hat7" visible="false">
+            <a-entity id="hat7-model" gltf-model="./assets/models/hat7.glb" scale="0.65 0.65 0.65" visible="false"></a-entity>
+            <a-entity id="hat7-placeholder"><a-cylinder color="#2C4A8C" radius="0.1" height="0.1"></a-cylinder></a-entity>
           </a-entity>
 
-          <!-- HAT 8: Bluko Leto -->
-          <a-entity id="hat8" position="0 0 0" visible="false">
-            <a-entity id="hat8-model" gltf-model="./assets/models/hat8.glb" scale="0.65 0.65 0.65"
-              visible="false"></a-entity>
-            <a-entity id="hat8-placeholder">
-              <a-cylinder color="#6A1A44" radius="0.12" height="0.02" position="0 0 0"></a-cylinder>
-            </a-entity>
+          <!-- HAT 8 -->
+          <a-entity id="hat8" visible="false">
+            <a-entity id="hat8-model" gltf-model="./assets/models/hat8.glb" scale="0.65 0.65 0.65" visible="false"></a-entity>
+            <a-entity id="hat8-placeholder"><a-cylinder color="#6A1A44" radius="0.1" height="0.1"></a-cylinder></a-entity>
           </a-entity>
-        </a-entity><!-- /hat-offset -->
-      </a-entity><!-- /hat-container -->
+
+        </a-entity>
+      </a-entity>
     </a-scene>
   </div>
-  <!-- ══ INFO PANEL (samping kanan) ══ -->
+
+  <!-- UI & INFO PANEL -->
   <div id="info-panel">
     <div class="info-panel-label">Topi Aktif</div>
     <div class="info-panel-name" id="ip-name">—</div>
     <div class="info-panel-divider"></div>
-    <div class="info-panel-label">Pengguna</div>
-    <div class="info-panel-user" id="ip-user">—</div>
-    <div class="info-panel-divider"></div>
-    <div class="info-panel-label">Fungsi</div>
-    <div class="info-panel-user" id="ip-fungsi">—</div>
-    <div class="info-panel-divider"></div>
-    <a class="info-panel-link" id="ip-link" href="#">
-      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
-        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
-      </svg>
-      Info Lengkap
-    </a>
+    <a class="info-panel-link" id="ip-link" href="#">Info Lengkap</a>
   </div>
+
   <div id="face-status" class="face-warning face-status-hidden">
-    <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none"
-      stroke="rgba(255,100,100,0.9)" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
-      <circle cx="12" cy="12" r="10" />
-      <circle cx="8.5" cy="10" r="1" fill="rgba(255,100,100,0.9)" />
-      <circle cx="15.5" cy="10" r="1" fill="rgba(255,100,100,0.9)" />
-      <path d="M9 15c.83 1 2.17 1.5 3 1.5s2.17-.5 3-1.5" />
-      <line x1="2" y1="2" x2="22" y2="22" stroke="rgba(255,80,80,0.95)" stroke-width="1.8" />
-    </svg>
-    <p>Wajah tidak terdeteksi</p>
-    <p class="face-warning-sub">Arahkan wajah ke kamera</p>
+    <p>Arahkan wajah ke kamera</p>
   </div>
-  <!-- ══ HUD ══ -->
+
   <div id="hud">
-    <!-- Top bar -->
     <div class="hud-top">
-      <button class="hud-btn" onclick="stopAR()">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
-          stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M19 12H5" />
-          <path d="M12 19l-7-7 7-7" />
-        </svg>
-        Kembali
-      </button>
-
-      <div class="hud-actions">
-        <button class="hud-btn" onclick="toggleInfoPanel()">
-          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
-            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="10" />
-            <line x1="12" y1="8" x2="12" y2="12" />
-            <line x1="12" y1="16" x2="12.01" y2="16" />
-          </svg>
-          <span>Info</span>
-        </button>
-        <button class="hud-btn" onclick="toggleUI()">
-          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
-            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-            <circle cx="12" cy="12" r="3" />
-          </svg>
-        </button>
-      </div>
+      <button class="hud-btn" onclick="stopAR()">Kembali</button>
     </div>
-    <!-- Bottom controls -->
     <div class="hud-bottom">
-      <p class="instruction-chip">Arahkan wajah ke kamera agar topi muncul</p>
-      <!-- Hat Selector -->
-      <div id="hat-selector">
-      </div>
-      <!-- Action Buttons -->
+      <div id="hat-selector"></div>
       <div class="ar-actions">
-        <button class="ar-action-btn secondary" onclick="resetAR()">
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
-            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-            <path d="M3 3v5h5" />
-          </svg>
-          Reset
-        </button>
-        <button class="ar-action-btn primary" onclick="takeScreenshot()">
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
-            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
-            <circle cx="12" cy="13" r="4" />
-          </svg>
-          Foto
-        </button>
+        <button class="ar-action-btn primary" onclick="takeScreenshot()">Ambil Foto</button>
       </div>
     </div>
   </div>
-  <!-- Flash overlay -->
-  <div id="flash-overlay"></div>
 
-  <!-- Preview Modal -->
-  <div id="preview-modal">
-    <div class="preview-label">Pratinjau Foto</div>
-    <img id="preview-img" src="" alt="Preview" />
-    <div class="preview-actions">
-      <button class="preview-btn close" onclick="closePreview()">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
-          stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="18" y1="6" x2="6" y2="18" />
-          <line x1="6" y1="6" x2="18" y2="18" />
-        </svg>
-        Batal
-      </button>
-      <button class="preview-btn save" onclick="savePhoto()">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
-          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-          <polyline points="7 10 12 15 17 10" />
-          <line x1="12" y1="15" x2="12" y2="3" />
-        </svg>
-        Simpan
-      </button>
-    </div>
-  </div>
-  <!-- Toast -->
-  <div id="toast"></div>
   <script src="js/data.js"></script>
   <script src="js/ar.js"></script>
 </body>
-
 </html>
