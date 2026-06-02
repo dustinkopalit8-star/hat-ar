@@ -23,8 +23,8 @@
       if (constraints && constraints.video) {
         constraints.video = {
           ...(typeof constraints.video === 'object' ? constraints.video : {}),
-          width:  { ideal: 1280 },
-          height: { ideal: 720 },
+          width:  { ideal: 640 },
+          height: { ideal: 480 },
           facingMode: 'user'
         };
       }
@@ -37,95 +37,113 @@
     AFRAME.registerComponent('head-center', {
       init() {
         this._freezeCount = 0;
-        this._prevPos = null;
+        this._prevPos = new THREE.Vector3();
+        this._hasPrevPos = false;
         this._faceVisible = false;
+        
+        // Cache elements
+        this.lm10 = document.getElementById('lm-10');
+        this.lm152 = document.getElementById('lm-152');
+        this.lm234 = document.getElementById('lm-234');
+        this.lm454 = document.getElementById('lm-454');
+        this.statusEl = document.getElementById('face-status');
+
+        // Reuse objects to avoid GC
+        this.topV = new THREE.Vector3();
+        this.bottomV = new THREE.Vector3();
+        this.leftV = new THREE.Vector3();
+        this.rightV = new THREE.Vector3();
+        this.yAxis = new THREE.Vector3();
+        this.xAxis = new THREE.Vector3();
+        this.zAxis = new THREE.Vector3();
+        this.rotMat = new THREE.Matrix4();
+        this.quat = new THREE.Quaternion();
+        this.hatPos = new THREE.Vector3();
+        this.parentWorldInv = new THREE.Matrix4();
+        this.parentQ = new THREE.Quaternion();
       },
-      remove() { },
+      
       tick() {
-        const lm10 = document.getElementById('lm-10');
-        const lm152 = document.getElementById('lm-152');
-        const lm234 = document.getElementById('lm-234');
-        const lm454 = document.getElementById('lm-454');
-        if (!lm10 || !lm152 || !lm234 || !lm454) return;
+        if (!this.lm10 || !this.lm152 || !this.lm234 || !this.lm454) return;
 
-        const getWP = (el) => {
-          const v = new THREE.Vector3();
-          el.object3D.getWorldPosition(v);
-          return v;
-        };
+        // Get world positions into reusable vectors
+        this.lm10.object3D.getWorldPosition(this.topV);
+        this.lm152.object3D.getWorldPosition(this.bottomV);
+        this.lm234.object3D.getWorldPosition(this.leftV);
+        this.lm454.object3D.getWorldPosition(this.rightV);
 
-        const top = getWP(lm10);
-        const bottom = getWP(lm152);
-        const left = getWP(lm234);
-        const right = getWP(lm454);
+        const showWarning = () => { if (this.statusEl) this.statusEl.classList.remove('face-status-hidden'); };
+        const hideWarning = () => { if (this.statusEl) this.statusEl.classList.add('face-status-hidden'); };
 
-        const statusEl = document.getElementById('face-status');
-
-        // Helper
-        const showWarning = () => { if (statusEl) statusEl.classList.remove('face-status-hidden'); };
-        const hideWarning = () => { if (statusEl) statusEl.classList.add('face-status-hidden'); };
-
-        if (top.lengthSq() < 0.0001) {
+        if (this.topV.lengthSq() < 0.0001) {
           this.el.object3D.visible = false;
           if (this._faceVisible !== false) {
             this._faceVisible = false;
-            showWarning(); // ← tampilkan warning
+            showWarning();
           }
           return;
         }
 
-        if (!this._prevPos) this._prevPos = top.clone();
-        const delta = top.distanceTo(this._prevPos);
-        if (delta < 0.000001) { this._freezeCount++; }
-        else { this._freezeCount = 0; this._prevPos.copy(top); }
+        if (!this._hasPrevPos) {
+          this._prevPos.copy(this.topV);
+          this._hasPrevPos = true;
+        }
+        
+        const delta = this.topV.distanceTo(this._prevPos);
+        if (delta < 0.000001) { 
+          this._freezeCount++; 
+        } else { 
+          this._freezeCount = 0; 
+          this._prevPos.copy(this.topV); 
+        }
+
         if (this._freezeCount > 60) {
           this.el.object3D.visible = false;
           if (this._faceVisible !== false) {
             this._faceVisible = false;
-            showWarning(); // ← tampilkan warning
+            showWarning();
           }
           return;
         }
 
-        const yAxis = new THREE.Vector3().subVectors(top, bottom).normalize();
-        const xAxis = new THREE.Vector3().subVectors(right, left).normalize();
-        const zAxis = new THREE.Vector3().crossVectors(xAxis, yAxis).normalize();
-        xAxis.crossVectors(yAxis, zAxis).normalize();
+        // Calculate orientation
+        this.yAxis.subVectors(this.topV, this.bottomV).normalize();
+        this.xAxis.subVectors(this.rightV, this.leftV).normalize();
+        this.zAxis.crossVectors(this.xAxis, this.yAxis).normalize();
+        this.xAxis.crossVectors(this.yAxis, this.zAxis).normalize();
 
-        if (zAxis.z < -0.1) {
+        if (this.zAxis.z < -0.1) {
           this.el.object3D.visible = false;
           if (this._faceVisible !== false) {
             this._faceVisible = false;
-            showWarning(); // ← tampilkan warning
+            showWarning();
           }
           return;
         }
 
-        // Wajah terdeteksiz
+        // Face detected
         this.el.object3D.visible = true;
         if (this._faceVisible !== true) {
           this._faceVisible = true;
-          hideWarning(); // ← sembunyikan warning
+          hideWarning();
         }
 
-        const hatPos = top.clone();
-        const rotMat = new THREE.Matrix4().makeBasis(xAxis, yAxis, zAxis);
-        const quat = new THREE.Quaternion().setFromRotationMatrix(rotMat);
+        this.hatPos.copy(this.topV);
+        this.rotMat.makeBasis(this.xAxis, this.yAxis, this.zAxis);
+        this.quat.setFromRotationMatrix(this.rotMat);
 
         const obj = this.el.object3D;
         const parent = obj.parent;
         if (parent) {
-          const parentWorldInv = parent.matrixWorld.clone().invert();
-          hatPos.applyMatrix4(parentWorldInv);
-          const parentQ = new THREE.Quaternion();
-          parent.getWorldQuaternion(parentQ);
-          quat.premultiply(parentQ.invert());
+          this.parentWorldInv.copy(parent.matrixWorld).invert();
+          this.hatPos.applyMatrix4(this.parentWorldInv);
+          parent.getWorldQuaternion(this.parentQ);
+          this.quat.premultiply(this.parentQ.invert());
         }
-        obj.position.copy(hatPos);
-        obj.quaternion.copy(quat);
+        obj.position.copy(this.hatPos);
+        obj.quaternion.copy(this.quat);
       }
     });
-
   </script>
   <link rel="stylesheet"
     href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Nunito:wght@600;700&display=swap" />
@@ -240,7 +258,6 @@
             <a-entity id="hat8-model" gltf-model="./assets/models/hat8.glb" scale="0.65 0.65 0.65"
               visible="false"></a-entity>
             <a-entity id="hat8-placeholder">
-              <a-cylinder color="#8C2C5E" radius="0.09" height="0.11" position="0 0.055 0"></a-cylinder>
               <a-cylinder color="#6A1A44" radius="0.12" height="0.02" position="0 0 0"></a-cylinder>
             </a-entity>
           </a-entity>

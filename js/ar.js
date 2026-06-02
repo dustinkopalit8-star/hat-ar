@@ -47,10 +47,9 @@ function startAR() {
     const scene = document.getElementById('ar-scene');
 
     scene.addEventListener('arReady', () => {
-
-
         document.getElementById('loading-overlay').classList.add('hidden');
-        showToast('AR siap! Arahkan wajah ke kamera 😊');
+        showToast('AR siap! 😊');
+        
         // Cache entities
         for (let n = 1; n <= TOTAL_HATS; n++) {
             hatEntities[n] = document.getElementById(`hat${n}`);
@@ -59,28 +58,32 @@ function startAR() {
         // Activate models
         for (let n = 1; n <= TOTAL_HATS; n++) {
             const modelEl = document.getElementById(`hat${n}-model`);
-            const placeholder = document.getElementById(`hat${n}-placeholder`);
             if (!modelEl) continue;
 
             const activate = () => {
                 modelEl.setAttribute('visible', true);
+                const placeholder = document.getElementById(`hat${n}-placeholder`);
                 if (placeholder) placeholder.setAttribute('visible', false);
-                const obj = modelEl.getObject3D('mesh');
-                if (obj) obj.traverse(node => { if (node.isMesh) node.renderOrder = 1; });
             };
 
             if (modelEl.getObject3D && modelEl.getObject3D('mesh')) activate();
             else modelEl.addEventListener('model-loaded', activate, { once: true });
         }
 
-        // Show info panel & update
-        document.getElementById('info-panel').classList.add('visible');
-        infoPanelVisible = true;
         updateInfoPanel(1);
-        // Tampilkan warning saat AR ready (belum ada wajah)
-        const statusEl = document.getElementById('face-status');
-        if (statusEl) statusEl.classList.remove('face-status-hidden');
     }, { once: true });
+
+    // Handle face status using MindAR events
+    const hatContainer = document.getElementById('hat-container');
+    const statusEl = document.getElementById('face-status');
+
+    hatContainer.addEventListener('targetFound', () => {
+        if (statusEl) statusEl.classList.add('face-status-hidden');
+    });
+
+    hatContainer.addEventListener('targetLost', () => {
+        if (statusEl) statusEl.classList.remove('face-status-hidden');
+    });
 
     scene.addEventListener('arError', () => {
         document.getElementById('loading-overlay').classList.add('hidden');
