@@ -926,14 +926,7 @@ const dbg = document.createElement('div');
       lmPos = `${v.x.toFixed(3)}, ${v.y.toFixed(3)}, ${v.z.toFixed(3)}`;
     }
 
-    dbg.innerHTML = `
-      V: ${video?.videoWidth}x${video?.videoHeight}<br>
-      C: ${canvas?.width}x${canvas?.height}<br>
-      W: ${window.innerWidth}x${window.innerHeight}<br>
-      DPR: ${window.devicePixelRatio}<br>
-      LM10: ${lmPos}<br>
-      UA: ${navigator.userAgent.includes('Brave') ? 'Brave' : navigator.userAgent.includes('Firefox') ? 'FF' : 'Chrome'}
-    `;
+   
   }, 1000);
       // Cache entities
       for (let n = 1; n <= TOTAL_HATS; n++) {
